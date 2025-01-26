@@ -1,0 +1,21 @@
+{
+    "app": {
+        "title": "Good day Mate!",
+        "footer": "Built with Azure OpenAI",
+        "stopRecording": "Stop recording",
+        "startRecording": "Start recording",
+        "stopConversation": "Stop conversation"
+    },
+    "status": {
+        "notRecordingMessage": "How can I help you?",
+        "conversationInProgress": "Conversation in progress"
+    },
+    "history": {
+        "answerHistory": "Answer history",
+        "noHistory": "No history yet."
+    },
+    "groundingFiles": {
+        "title": "Grounding files",
+        "description": "Files used to ground the answers."
+    }
+}
