@@ -10,9 +10,10 @@ from azure.core.credentials import AzureKeyCredential
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
+import os
 
 # Initialize the Azure Text-to-Speech service
-speech_config = SpeechConfig(subscription="A1Xw9uqJzoZ0paAuiekGSH56Tw1qlfwXerzKrrl11rU2jPveE5DFJQQJ99BAACHYHv6XJ3w3AAAYACOGQfQC", region="eastus2")
+speech_config = SpeechConfig(subscription=os.environ.get("AZURE_SPEECH_KEY"), region=os.environ.get("AZURE_SPEECH_REGION"))
 speech_config.speech_synthesis_voice_name = "en-US-AnaNeural"
 audio_config = AudioConfig(use_default_speaker=True)
 speech_synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
