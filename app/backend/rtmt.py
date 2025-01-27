@@ -8,7 +8,15 @@ import aiohttp
 from aiohttp import web
 from azure.core.credentials import AzureKeyCredential
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
 
+# Initialize the Azure Text-to-Speech service
+speech_config = SpeechConfig(subscription="A1Xw9uqJzoZ0paAuiekGSH56Tw1qlfwXerzKrrl11rU2jPveE5DFJQQJ99BAACHYHv6XJ3w3AAAYACOGQfQC", region="eastus2")
+speech_config.speech_synthesis_voice_name = "en-US-AnaNeural"
+audio_config = AudioConfig(use_default_speaker=True)
+speech_synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 logger = logging.getLogger("voicerag")
 
 class ToolResultDirection(Enum):
@@ -112,46 +120,17 @@ class RTMiddleTier:
                 case "response.function_call_arguments.done":
                     updated_message = None
 
-                case "response.output_item.done":
-                    if "item" in message and message["item"]["type"] == "function_call":
-                        item = message["item"]
-                        tool_call = self._tools_pending[message["item"]["call_id"]]
-                        tool = self.tools[item["name"]]
-                        args = item["arguments"]
-                        result = await tool.target(json.loads(args))
-                        await server_ws.send_json({
-                            "type": "conversation.item.create",
-                            "item": {
-                                "type": "function_call_output",
-                                "call_id": item["call_id"],
-                                "output": result.to_text() if result.destination == ToolResultDirection.TO_SERVER else ""
-                            }
-                        })
-                        if result.destination == ToolResultDirection.TO_CLIENT:
-                            # TODO: this will break clients that don't know about this extra message, rewrite 
-                            # this to be a regular text message with a special marker of some sort
-                            await client_ws.send_json({
-                                "type": "extension.middle_tier_tool_response",
-                                "previous_item_id": tool_call.previous_id,
-                                "tool_name": item["name"],
-                                "tool_result": result.to_text()
-                            })
-                        updated_message = None
-
-                case "response.done":
-                    if len(self._tools_pending) > 0:
-                        self._tools_pending.clear() # Any chance tool calls could be interleaved across different outstanding responses?
-                        await server_ws.send_json({
-                            "type": "response.create"
-                        })
-                    if "response" in message:
-                        replace = False
-                        for i, output in enumerate(reversed(message["response"]["output"])):
-                            if output["type"] == "function_call":
-                                message["response"]["output"].pop(i)
-                                replace = True
-                        if replace:
-                            updated_message = json.dumps(message)                        
+                # Add a case to handle the text-to-speech conversion
+                case "response.text":
+                    text_to_speak = message["text"]
+                    result = speech_synthesizer.speak_text_async(text_to_speak).get()
+                    if result.reason == ResultReason.SynthesizingAudioCompleted:
+                        logger.info("Speech synthesized for text: %s", text_to_speak)
+                    elif result.reason == ResultReason.Canceled:
+                        cancellation_details = result.cancellation_details
+                        logger.error("Speech synthesis canceled: %s", cancellation_details.reason)
+                        if cancellation_details.reason == CancellationReason.Error:
+                            logger.error("Error details: %s", cancellation_details.error_details)
 
         return updated_message
 
